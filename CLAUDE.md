@@ -9,14 +9,16 @@ There is no code outside `.mcfunction` and JSON files. There are no automated te
 The pack was originally written for **1.19** (`pack_format: 10`). It now targets **1.21.11 through 26.3**: `pack.mcmeta` has `min_format: [94, 1]` and `max_format: 121`. Formats must be integers or `[major, minor]` arrays. Decimals like `94.1` are invalid. Data pack formats are: 1.21.11 = 94.1, 26.1 = 101.1, 26.2 = 107.1, 26.3 = 121.0. When a new version ships, check its changelog and raise `max_format`.
 
 Port work done:
+
 - The folders are `function/`, `tags/function/` and `tags/block/` (singular).
 - `setup/go` uses the 1.21.5+ text syntax (`click_event` / `command`).
 - `safe.json` uses `minecraft:short_grass`.
 - `worldborder set` times use an `s` suffix (e.g. `worldborder set 160 1990s`). Since 1.21.11 a bare number means **ticks**.
 - Item/firework NBT uses item components (`count`, `components:{"minecraft:fireworks":...}`).
-- `load` runs `forceload add -80 -80 80 80`, because spawn chunks are no longer kept loaded. It summons the riser only if none exists. `system/period/main` re-summons the riser if it is missing.
+- The play area is centered on a configurable point, not 0,0 (see **Play area center**). Spawn chunks are no longer kept loaded, so `system/center/apply` forceloads ±80 around the center.
 
 Still open:
+
 - Legacy mode (pre-1.18 world height) is meaningless on 1.21+. Consider removing it.
 
 ## Build / test
@@ -26,6 +28,7 @@ Still open:
 - Check that functions loaded: `/function lavarising:` should tab-complete. A parse error in one function silently drops that function, and anything referencing a missing tag or function fails too. Check the server log.
 - The world needs **cheats / Allow Commands ON** (or Open to LAN → Allow Commands). Without it, `/function` doesn't exist ("Unknown or incomplete command … function lavarising:start<--[HERE]"), even though the menu still shows and `/trigger` still works.
 - Setup menu: `/trigger setup`, or `/function lavarising:setup/go`. Start a game with `/function lavarising:start`.
+- Solo testing: turn on **Singleplayer (testing)** in the setup menu. It bypasses the player and team start checks and adds a phantom alive player. The older `/scoreboard players set debug internal 77` does the same, but it also skips the period check.
 - Solo debugging: `/scoreboard players set debug internal 77`. This bypasses the "≥2 players" start check and adds a phantom alive player, so the game doesn't end instantly.
 - Reset to defaults: `/scoreboard players reset defaults internal`, then `/reload`.
 
@@ -69,13 +72,13 @@ data/lavarising/tags/block/{safe,illegal}.json
 
 ## Game state machine — `period internal`
 
-| value | phase | set by | player state (applied in `time`) |
-|---|---|---|---|
-| -1 | pre-game / lobby | `defaults` | adventure, weakness/resistance/regen/saturation |
-| 0 | starter (no PvP) | `start_c` | survival, resistance only |
-| 1 | grace (PvP on, border shrinks) | `system/period/grace` when `time_s >= starter_period` | survival, no effects |
-| 2 | main (lava rises, deaths eliminate) | `system/period/main` when `time_s >= grace_period` | survival, no effects |
-| 3 | game over | `system/win/**/go*` | non-winners → spectator, all get resistance |
+| value | phase                               | set by                                                | player state (applied in `time`)                |
+| ----- | ----------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
+| -1    | pre-game / lobby                    | `defaults`                                            | adventure, weakness/resistance/regen/saturation |
+| 0     | starter (no PvP)                    | `start_c`                                             | survival, resistance only                       |
+| 1     | grace (PvP on, border shrinks)      | `system/period/grace` when `time_s >= starter_period` | survival, no effects                            |
+| 2     | main (lava rises, deaths eliminate) | `system/period/main` when `time_s >= grace_period`    | survival, no effects                            |
+| 3     | game over                           | `system/win/**/go*`                                   | non-winners → spectator, all get resistance     |
 
 - `fm:clock` runs only in periods 0–2. Each transition resets `time` and `time_s` to 0.
 - **last_login pattern** (`time.mcfunction`): each player's `last_login` holds the period whose state was last applied to them. When `last_login != period`, the state is re-applied once. This also handles players who join mid-game. Players on team `admin` are exempt from gamemode changes, but **that team is never created**.
@@ -84,6 +87,7 @@ data/lavarising/tags/block/{safe,illegal}.json
 ## Scoreboards
 
 Objectives:
+
 - `global`: settings.
 - `internal`: state and constants.
 - `last_login`: see the pattern above.
@@ -94,25 +98,27 @@ Objectives:
 
 ### Settings (`<name> global`)
 
-| setting | default | menu / clamp |
-|---|---|---|
-| starter_period (s) | 60 | ±10 in the menu, no bounds. `main` clamps it to at least 10 |
-| grace_period (s) | 1800 | ±30 in the menu, range 400..2090. `main` resets values below 400 to **1200** |
-| rise_ticks | 80 | ±1, range 1..5981 |
-| rise_height_limit (Y) | 316 | ±1, min 1. Max 320, or 255 in legacy. `main` forces 251 if legacy is on and the value is ≥257 |
-| teams | 0 | toggle |
-| teams_count | 2 | **no menu**. 2 = red/blue, 3 = red/blue/green |
-| cut_clean | 1 | toggle |
-| speed_uhc | 1 | toggle |
-| patch_grindstone_exploit | 1 | – |
-| sfx | 1 | – (the sound on each lava rise) |
-| kill_nearby_falling_blocks / kill_nearby_distance | 1 / 2 | – |
-| kill_all_falling_blocks | 0 | – |
-| clear_illegal_blocks | 1 | – |
-| legacy | 0 | toggle (pre-1.18: riser starts at Y 0, lower height cap, different border timings) |
-| eliminate_on_disconnect | 0 | force-disabled in `main` |
+| setting                                           | default | menu / clamp                                                                                  |
+| ------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| starter_period (s)                                | 60      | ±10 in the menu, no bounds. `main` clamps it to at least 10                                   |
+| grace_period (s)                                  | 1800    | ±30 in the menu, range 400..2090. `main` resets values below 400 to **1200**                  |
+| rise_ticks                                        | 80      | ±1, range 1..5981                                                                             |
+| rise_height_limit (Y)                             | 316     | ±1, min 1. Max 320, or 255 in legacy. `main` forces 251 if legacy is on and the value is ≥257 |
+| teams                                             | 0       | toggle                                                                                        |
+| teams_count                                       | 2       | **no menu**. 2 = red/blue, 3 = red/blue/green                                                 |
+| cut_clean                                         | 1       | toggle                                                                                        |
+| speed_uhc                                         | 1       | toggle                                                                                        |
+| patch_grindstone_exploit                          | 1       | –                                                                                             |
+| sfx                                               | 1       | – (the sound on each lava rise)                                                               |
+| kill_nearby_falling_blocks / kill_nearby_distance | 1 / 2   | –                                                                                             |
+| kill_all_falling_blocks                           | 0       | –                                                                                             |
+| clear_illegal_blocks                              | 1       | –                                                                                             |
+| legacy                                            | 0       | toggle (pre-1.18: riser starts at Y 0, lower height cap, different border timings)            |
+| singleplayer                                      | 0       | toggle (testing: allows starting alone, adds a phantom alive player)                          |
+| eliminate_on_disconnect                           | 0       | force-disabled in `main`                                                                      |
 
 ### Key `internal` fake players
+
 - `period`: the game state.
 - `time` / `time_s`: the clock.
 - `time_left`: shown in the bossbar.
@@ -128,16 +134,26 @@ Objectives:
 
 ## Riser (lava) mechanics
 
-- `load` summons an invisible marker armor stand tagged `riser` at `0 -64 0`. When the main phase starts, `system/period/main` teleports it to `0 -64 0`, or to `0 0 0` in legacy mode.
+- When the main phase starts, `system/period/main` summons an invisible marker armor stand tagged `riser` at the play area center, at Y -64 (or 0 in legacy). Any old riser is killed first.
 - `system/riser/main` runs as the riser every tick in period 2:
   1. If `clear_illegal_blocks` is on, it replaces `#lavarising:illegal` blocks (water, kelp, seagrass, coral, sea pickles) with air, from the riser's Y up to Y+3, across the area.
   2. It sets `riser_height` to the armor stand's Y − 1.
   3. If `riser_height < rise_height_limit`, it runs `system/riser/time`. That counts `rise_time` up, and at `rise_ticks` it calls `go`.
-- `go` teleports the riser up 1 block. It then fills one lava layer in 4 quadrants (−80..80 on x/z, 161×161 in total). The quadrants run at 0, 2, 4 and 6 ticks via `schedule`, which spreads out the lag and keeps each `fill` under the 32768-block limit. The quadrant functions re-find the riser with `execute at @e[tag=riser,limit=1]`.
+- `go` teleports the riser up 1 block. It then fills one lava layer in 4 quadrants (±80 on x/z around the riser, 161×161 in total). The quadrants run at 0, 2, 4 and 6 ticks via `schedule`, which spreads out the lag and keeps each `fill` under the 32768-block limit. The quadrant functions re-find the riser with `execute at @e[tag=riser,limit=1]`.
 - Falling-block culling (`system/performance/nearby_blocks`) kills falling blocks whose Y − `kill_nearby_distance` is ≤ `riser_height`.
-- **The play area is hardcoded to x/z −80..80 around 0,0.** Border sizes assume this too.
+- The lava fills and illegal-block clears are **relative to the riser** (`~-80..~80`), so the riser's x/z is the play area center.
+
+### Play area center
+
+- It's stored in `storage lavarising:center {x, z}` (for macros), plus the `center_x` / `center_z global` scores (for display). `center_set internal` means it has been chosen.
+- **Default:** in period -1, if `center_set` is unset, `main` runs `system/center/set` as the first player (`@a[limit=1]`). `defaults` resets `center_set`. `load` seeds the storage with 0,0 so macros never fail.
+- **Set here:** the menu button (trigger 21) runs `setup/center/here`. It calls `set` and then teleports everyone to the clicker.
+- `system/center/set` stores @s's x/z, runs `setworldspawn` there (so respawns land inside the area), then calls `apply`.
+- `system/center/apply` (macro) kills loaded risers, runs `worldborder center`, `forceload remove all`, then `forceload add` ±80 around the center.
+- The riser is only summoned when the main period starts, by `system/center/riser` (macro, called from `system/period/main`). It's placed at the center, at Y -64 (or 0 in legacy).
 
 ### World border
+
 - Pre-game: 10.
 - `start_c`: expands over 5s to a size that depends on the `grace_period` bucket (444…2222).
 - Grace (`system/border/grace`): shrinks to 160 over roughly `grace_period + 190` seconds. The legacy version uses roughly `grace_period` seconds.
@@ -158,10 +174,12 @@ Objectives:
 - Each file starts with a `# LAVARISING <area>` header. `##` marks sub-notes. There are two blank lines after the header.
 - Settings go in `global`, runtime state in `internal`. Toggles use `matches 1..` / `unless ... matches 1..`.
 - Chat prefixes: `[X]` (red) for errors, `[!]` for announcements, `[☠]` for eliminations. They use `dark_gray` brackets.
+- **Menu buttons never click-run `/function`.** Since 1.21.6, that shows a "run this command?" confirmation screen for any op-level command. Buttons run `/trigger setup set <n>` instead, and `setup/trigger` dispatches on the value: 1 = menu, 2–19 = option on/off/down/up, 20 = start, 21 = set center here. Pick an unused number for a new button.
 - Every setup action calls `setup/sfx/on` or `setup/sfx/off`, which plays a sound and **re-renders `setup/go`**.
 - **Adding a setting** requires changes in these places:
   - a default in `defaults`
-  - a menu line in `setup/go`
+  - a menu line in `setup/go` (clicks use `/trigger setup set <n>`)
+  - a dispatch line for each `<n>` in `setup/trigger`
   - the `setup/<name>/{on,off}` or `{up,down}` files
   - a clamp in `main` (optional)
   - then use the setting wherever it is needed

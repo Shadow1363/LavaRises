@@ -6,13 +6,9 @@ scoreboard players set period internal 2
 scoreboard players set time internal 0
 scoreboard players set time_s internal 0
 
-# ensure riser exists
-## load may run before the forceloaded chunks are ready
-execute unless entity @e[tag=riser] run summon minecraft:armor_stand 0 -64 0 {Tags:["riser"],Invisible:1b,Marker:1b,Small:1b}
-
-# legacy mode
-execute if score legacy global matches 1.. run tp @e[tag=riser,limit=1] 0 0 0
-execute unless score legacy global matches 1.. run tp @e[tag=riser,limit=1] 0 -64 0
+# summon riser at the play area center
+## legacy mode starts at y 0
+function lavarising:system/center/riser with storage lavarising:center
 
 # count players
 ## solos
@@ -28,6 +24,9 @@ execute as @a[gamemode=survival,team=green] run scoreboard players add alive_gre
 ## debug!
 execute if score debug internal matches 77 run scoreboard players operation alive internal += 1 internal
 execute if score debug internal matches 77 run scoreboard players operation alive_blue internal += 1 internal
+## singleplayer (testing)
+execute if score singleplayer global matches 1.. unless score debug internal matches 77 run scoreboard players operation alive internal += 1 internal
+execute if score singleplayer global matches 1.. unless score debug internal matches 77 run scoreboard players operation alive_blue internal += 1 internal
 
 # announce
 title @a title ["",{"text":"LAVA RISING","color":"red","bold":true}]

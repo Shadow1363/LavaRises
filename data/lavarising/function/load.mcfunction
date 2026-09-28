@@ -25,13 +25,10 @@ scoreboard objectives add player.death deathCount
 # track player leave
 scoreboard objectives add player.leave minecraft.custom:minecraft.leave_game
 
-# keep play area loaded
-## spawn chunks are no longer always loaded (1.21.9+),
-## the riser and lava fills need these chunks
-forceload add -80 -80 80 80
-
-# create riser
-execute unless entity @e[tag=riser] run summon minecraft:armor_stand 0 -64 0 {Tags:["riser"],Invisible:1b,Marker:1b,Small:1b}
+# play area center
+## chosen in setup, or the first player's position (see main)
+## the riser is summoned there when the main period starts
+execute unless data storage lavarising:center x run data merge storage lavarising:center {x:0,z:0}
 
 # teams
 ## red

@@ -57,6 +57,15 @@ scoreboard players set clear_illegal_blocks global 1
 ## resets some values to support pre-1.18
 scoreboard players set legacy global 0
 
+# play area center
+## unset, main picks the first player's position
+scoreboard players reset center_set internal
+
+# singleplayer (testing)
+## lets a single player start the game,
+## adds a phantom alive player so it doesn't end instantly
+scoreboard players set singleplayer global 0
+
 # eliminate on player disconnect
 ## if a player disconnects, they will be permanently
 ## eliminated from the game

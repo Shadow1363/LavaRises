@@ -17,15 +17,21 @@ scoreboard objectives add falling_blocks dummy
 # bossbar
 bossbar add lavarising:main ""
 bossbar set lavarising:main color red
+bossbar set lavarising:main players @a
 
-# track player death
+# track player deaths
 scoreboard objectives add player.death deathCount
 
 # track player leave
 scoreboard objectives add player.leave minecraft.custom:minecraft.leave_game
 
+# keep play area loaded
+## spawn chunks are no longer always loaded (1.21.9+),
+## the riser and lava fills need these chunks
+forceload add -80 -80 80 80
+
 # create riser
-summon minecraft:armor_stand 0 -64 0 {Tags:["riser"],Invisible:1b,Marker:1b,Small:1b}
+execute unless entity @e[tag=riser] run summon minecraft:armor_stand 0 -64 0 {Tags:["riser"],Invisible:1b,Marker:1b,Small:1b}
 
 # teams
 ## red

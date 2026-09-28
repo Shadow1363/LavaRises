@@ -6,6 +6,10 @@ scoreboard players set period internal 2
 scoreboard players set time internal 0
 scoreboard players set time_s internal 0
 
+# ensure riser exists
+## load may run before the forceloaded chunks are ready
+execute unless entity @e[tag=riser] run summon minecraft:armor_stand 0 -64 0 {Tags:["riser"],Invisible:1b,Marker:1b,Small:1b}
+
 # legacy mode
 execute if score legacy global matches 1.. run tp @e[tag=riser,limit=1] 0 0 0
 execute unless score legacy global matches 1.. run tp @e[tag=riser,limit=1] 0 -64 0

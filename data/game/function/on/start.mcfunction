@@ -1,0 +1,3 @@
+# GAME start
+## lobby -> starter (period 0), the game has begun
+## give kits, spread players, set gamerules...

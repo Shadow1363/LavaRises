@@ -1,204 +1,220 @@
-# CLAUDE.md — Lava Rising datapack
+# CLAUDE.md — Minigame template datapack
 
-Minecraft Java datapack for the **Lava Rising** minigame. Players first gather resources. PvP then turns on and the world border shrinks. After that, lava rises from the bottom of the world one layer at a time. The last player or team alive wins.
+A Minecraft Java datapack template for last-player-standing minigames. Players gather resources first. Then PvP turns on and the world border shrinks. After that, deaths eliminate. The last player or team alive wins.
+
+The engine (`core`) has no game mechanic of its own. A game plugs into it through **hooks**, the stubs in `data/game/function/on/`. The template was extracted from the Lava Rising pack, and all lava/riser code has been removed.
 
 There is no code outside `.mcfunction` and JSON files. There are no automated tests. Everything is verified in-game.
 
-## Version / port status
+## Version
 
-The pack was originally written for **1.19** (`pack_format: 10`). It now targets **1.21.11 through 26.3**: `pack.mcmeta` has `min_format: [94, 1]` and `max_format: 121`. Formats must be integers or `[major, minor]` arrays. Decimals like `94.1` are invalid. Data pack formats are: 1.21.11 = 94.1, 26.1 = 101.1, 26.2 = 107.1, 26.3 = 121.0. When a new version ships, check its changelog and raise `max_format`.
+Targets **1.21.11 through 26.3**: `pack.mcmeta` has `min_format: [94, 1]` and `max_format: 121`. Formats must be integers or `[major, minor]` arrays. Decimals like `94.1` are invalid. Data pack formats are: 1.21.11 = 94.1, 26.1 = 101.1, 26.2 = 107.1, 26.3 = 121.0. When a new version ships, check its changelog and raise `max_format`.
 
-Port work done:
+Version notes:
 
-- The folders are `function/`, `tags/function/` and `tags/block/` (singular).
-- `setup/go` uses the 1.21.5+ text syntax (`click_event` / `command`).
-- `safe.json` uses `minecraft:short_grass`.
-- `worldborder set` times use an `s` suffix (e.g. `worldborder set 160 1990s`). Since 1.21.11 a bare number means **ticks**.
-- Item/firework NBT uses item components (`count`, `components:{"minecraft:fireworks":...}`).
-- The play area is centered on a configurable point, not 0,0 (see **Play area center**). Spawn chunks are no longer kept loaded, so `system/center/apply` forceloads ±80 around the center.
-
-Still open:
-
-- Legacy mode (pre-1.18 world height) is meaningless on 1.21+. Consider removing it.
+- Folders are singular: `function/`, `tags/function/`, `tags/block/`, `tags/item/`.
+- Text components use the 1.21.5+ syntax (`click_event` / `command`, `hover_event` / `value`).
+- `worldborder set` times use an `s` suffix. Since 1.21.11 a bare number means **ticks**.
+- Item NBT uses components, and item checks use `execute if items` (with the `contents` slot on item entities).
+- Macros (`$` lines, `function x {..}` / `with storage`) are used throughout.
 
 ## Build / test
 
-- Build: `zip -r LavaRising.zip data pack.mcmeta pack.png LICENSE README.md`. The zip is gitignored.
+- Build: `zip -r Minigame.zip data pack.mcmeta pack.png LICENSE README.md`. Zips are gitignored.
 - Install by putting the pack in `<world>/datapacks/`, then run `/reload`.
-- Check that functions loaded: `/function lavarising:` should tab-complete. A parse error in one function silently drops that function, and anything referencing a missing tag or function fails too. Check the server log.
-- The world needs **cheats / Allow Commands ON** (or Open to LAN → Allow Commands). Without it, `/function` doesn't exist ("Unknown or incomplete command … function lavarising:start<--[HERE]"), even though the menu still shows and `/trigger` still works.
-- Setup menu: `/trigger setup`, or `/function lavarising:setup/go`. Start a game with `/function lavarising:start`.
-- Solo testing: turn on **Singleplayer (testing)** in the setup menu. It bypasses the player and team start checks and adds a phantom alive player. The older `/scoreboard players set debug internal 77` does the same, but it also skips the period check.
-- Solo debugging: `/scoreboard players set debug internal 77`. This bypasses the "≥2 players" start check and adds a phantom alive player, so the game doesn't end instantly.
-- Reset to defaults: `/scoreboard players reset defaults internal`, then `/reload`.
+- Check that functions loaded: `/function core:` should tab-complete. A parse error in one function silently drops that function, and anything referencing it fails too. Check the server log.
+- The world needs **cheats / Allow Commands ON**. Without it, `/function` doesn't exist, even though the menu and `/trigger` still work.
+- Setup menu: `/trigger setup` (or `/function core:setup/menu`). Start a game with the menu's Start button or `/function core:start`. Back to the lobby with the Back to lobby button after a game, or `/function core:reset`.
+- Solo testing: turn on **Singleplayer** in the menu. It bypasses the player and team start checks and adds a phantom contender, so the game doesn't end instantly. It always ends in a draw when you die. With teams on, join a team first, or the game draws as soon as main starts.
+- Reset settings to defaults: `/scoreboard players reset defaults internal`, then `/reload`.
 
 ## Layout
 
 ```
-data/minecraft/tags/function/{load,tick}.json   -> lavarising:load / lavarising:main
-data/fm/function/                               shared helpers ("fm" framework)
-  clock           time (ticks) -> time_s (seconds) in `internal`
-  players/count   `players internal` = # of non-spectators
-  prepare         unused
-data/lavarising/function/
-  load            objectives, bossbar, teams, riser entity, run defaults once
-  defaults        all default settings (guarded by `defaults internal`)
-  main            TICK entry point
-  time            clock, period transitions, bossbar, per-period player state
-  start / start_c validation, then actual game start
-  setup/          chat-menu UI (go = render menu; <option>/{on,off,up,down})
-  extras/         cut_clean, speed_uhc, grindstone (exploit patch)
-  system/period/  grace (0->1), main (1->2)
-  system/riser/   main, time, go, quadrants/0..3
-  system/border/  grace, legacy/grace, main
-  system/death/   solos/go, teams/go_{red,blue,green}, disconnect
-  system/win/     solos/{check,go}, teams-2/check, teams-3/check, teams/go_*
-  system/performance/nearby_blocks
-data/lavarising/tags/block/{safe,illegal}.json
+data/minecraft/tags/function/{load,tick}.json   -> core:load / core:tick
+data/core/
+  function/
+    load, tick, defaults, reset, start
+    util/         clock, count_players, error {message}, announce {message}
+    setup/        menu (render), trigger -> dispatch, toggle {..}, step {..},
+                  center_here, lobby, sfx/{on,off}, ui/{toggle,number,section} {..}
+    period/       tick (clock + transitions), starter, grace, main, bossbar
+    player/       apply -> lobby | starter | playing | over
+    border/       set {size,time}, start, grace, final
+    center/       set, apply, gather
+    teams/        pick (trigger), join {team,name}, shuffle, shuffle_next, ready
+    elimination/  count, death
+    win/          check, solo, team {..}, draw, finish
+    modules/      cut_clean/{tick,item,smelt}, speed_uhc/{tick,grindstone}
+  tags/function/hooks/*.json   -> game:on/<hook> (required: false)
+  tags/block/safe.json         blocks a lobby player's head may be in
+  tags/item/cut_clean/*.json   ore blocks that smelt (silk touch)
+data/game/function/on/         the game's hook stubs (see Hooks)
 ```
 
-## Tick flow (`lavarising:main`)
+## Hooks
 
-1. Setup. The menu is shown once, keyed by the global fake player `setup internal`. The pre-game actionbar hint appears, and `/trigger setup` is enabled and handled (it only works in period -1).
-2. `bossbar ... players @a`.
-3. Pre-game only: if the block above a player isn't `#lavarising:safe`, teleport them up 5 blocks.
-4. Extras every tick: `cut_clean`, `speed_uhc`, `grindstone` (when speed_uhc and the patch are on).
-5. Range clamps on settings (see the table below).
-6. Period 2: falling-block culling, then `system/riser/main` run `as` the riser.
-7. `lavarising:time`.
-8. Period 2: death checks (`player.death ≥ 1`), then `scoreboard players reset @a player.death`.
-9. Period 2: win checks (solo, 2-team, or 3-team).
-10. Disconnect elimination is force-disabled here: it prints an error and sets the setting back to 0.
+Each `#core:hooks/<name>` tag points to `game:on/<name>` with `required: false`. That means a game can delete stubs it doesn't need, or add more functions to a tag.
+
+| hook            | when / context                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------- |
+| `load`          | end of `core:load`, every `/reload`. Set `storage core:config {title, start_subtitle, main_subtitle}` here      |
+| `defaults`      | inside `core:defaults` (runs once, same guard), before the first `reset`                                       |
+| `tick`          | end of `core:tick`, every tick                                                                                 |
+| `menu`          | as the viewer, inside `setup/menu`, between Extras and Testing                                                 |
+| `setup_trigger` | as the clicker, lobby only, when no core button matched. `clicked internal` is the button number (100+)        |
+| `start_check`   | as the clicker, after core's start checks pass. Print why, then set `can_start internal` to 0 to block         |
+| `start`         | end of `period/starter` (period 0)                                                                             |
+| `grace`         | end of `period/grace` (period 1)                                                                               |
+| `main`          | end of `period/main` (period 2). Alive players are tagged `core.alive`                                         |
+| `bossbar`       | every tick, after core sets `bossbar core:main`. Override it here                                              |
+| `death`         | as/at a player eliminated in main, after the counters and announcement                                         |
+| `win`           | end of `win/finish` (period 3). Winners are tagged `win`, with none on a draw                                  |
+| `reset`         | end of `core:reset` (back to the lobby, and also on the very first load)                                       |
+| `center`        | end of `center/apply`, when the play area center moved. Read `storage core:center {x, z}`                      |
+
+## Tick flow (`core:tick`)
+
+1. Lobby only: if `center_set` is unset, set the center to the first player's position. The pre-game actionbar hint appears. Players whose head is in a block not in `#core:safe` are teleported up 5 blocks.
+2. The menu is shown once to everyone, keyed by the global `setup internal`. `reset` clears it so the menu appears again.
+3. Triggers: `setup` and `team` are enabled for `@a`, and anyone with a value runs `setup/trigger` or `teams/pick`.
+4. Modules: `cut_clean` and `speed_uhc` run when they are on.
+5. `period/tick`: the clock (periods 0–2), period transitions, the final border shrink, the bossbar, then `player/apply` for anyone whose `last_login ≠ period`.
+6. Period 2: `elimination/death` runs for `core.alive` players with `player.death ≥ 1`. Then `player.death` is reset for everyone, and `win/check` runs.
+7. `#core:hooks/tick`.
 
 ## Game state machine — `period internal`
 
-| value | phase                               | set by                                                | player state (applied in `time`)                |
-| ----- | ----------------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| -1    | pre-game / lobby                    | `defaults`                                            | adventure, weakness/resistance/regen/saturation |
-| 0     | starter (no PvP)                    | `start_c`                                             | survival, resistance only                       |
-| 1     | grace (PvP on, border shrinks)      | `system/period/grace` when `time_s >= starter_period` | survival, no effects                            |
-| 2     | main (lava rises, deaths eliminate) | `system/period/main` when `time_s >= grace_period`    | survival, no effects                            |
-| 3     | game over                           | `system/win/**/go*`                                   | non-winners → spectator, all get resistance     |
+| value | phase                          | entered via                                  | player state (`player/*`, applied once per period)                                         |
+| ----- | ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| -1    | lobby                          | `core:reset`                                 | adventure, infinite weakness/resistance/regen/saturation. Clears `core.alive` and `win`     |
+| 0     | starter (no PvP)               | `start` → `period/starter`                   | survival (unless spectator), resistance                                                    |
+| 1     | grace (PvP on, border shrinks) | `period/grace` when `time_s >= starter_period` | survival (unless spectator), no effects                                                  |
+| 2     | main (deaths eliminate)        | `period/main` when `time_s >= grace_period`  | no effects. Players without `core.alive` (joined late) become spectators                   |
+| 3     | game over                      | `win/finish`                                 | non-winners become spectators, all get resistance, winners glow                            |
 
-- `fm:clock` runs only in periods 0–2. Each transition resets `time` and `time_s` to 0.
-- **last_login pattern** (`time.mcfunction`): each player's `last_login` holds the period whose state was last applied to them. When `last_login != period`, the state is re-applied once. This also handles players who join mid-game. Players on team `admin` are exempt from gamemode changes, but **that team is never created**.
-- The bossbar shows time left for periods 0 and 1, and the riser Y plus rise progress for period 2.
+- Each transition resets `time` and `time_s` to 0. The main period has no time limit and ends when `win/check` finds ≤ 1 contender.
+- **last_login pattern**: `player/apply` runs when `@s last_login ≠ period` (and for new players, who have no score). It sets `last_login` and dispatches to the period's file. This also handles players who join mid-game.
+- **Spectators are observers/admins.** Anyone who switches to spectator after the lobby state was applied stays out of the game. They are ignored by the player count and team checks, and they don't get `core.alive`.
 
 ## Scoreboards
 
 Objectives:
 
 - `global`: settings.
-- `internal`: state and constants.
+- `internal`: state.
 - `last_login`: see the pattern above.
-- `setup`: a trigger.
-- `falling_blocks`: scratch value.
 - `player.death`: `deathCount`.
-- `player.leave`: `minecraft.custom:minecraft.leave_game`.
+- `setup` / `team`: triggers.
 
 ### Settings (`<name> global`)
 
-| setting                                           | default | menu / clamp                                                                                  |
-| ------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------- |
-| starter_period (s)                                | 60      | ±10 in the menu, no bounds. `main` clamps it to at least 10                                   |
-| grace_period (s)                                  | 1800    | ±30 in the menu, range 400..2090. `main` resets values below 400 to **1200**                  |
-| rise_ticks                                        | 80      | ±1, range 1..5981                                                                             |
-| rise_height_limit (Y)                             | 316     | ±1, min 1. Max 320, or 255 in legacy. `main` forces 251 if legacy is on and the value is ≥257 |
-| teams                                             | 0       | toggle                                                                                        |
-| teams_count                                       | 2       | **no menu**. 2 = red/blue, 3 = red/blue/green                                                 |
-| cut_clean                                         | 1       | toggle                                                                                        |
-| speed_uhc                                         | 1       | toggle                                                                                        |
-| patch_grindstone_exploit                          | 1       | –                                                                                             |
-| sfx                                               | 1       | – (the sound on each lava rise)                                                               |
-| kill_nearby_falling_blocks / kill_nearby_distance | 1 / 2   | –                                                                                             |
-| kill_all_falling_blocks                           | 0       | –                                                                                             |
-| clear_illegal_blocks                              | 1       | –                                                                                             |
-| legacy                                            | 0       | toggle (pre-1.18: riser starts at Y 0, lower height cap, different border timings)            |
-| singleplayer                                      | 0       | toggle (testing: allows starting alone, adds a phantom alive player)                          |
-| eliminate_on_disconnect                           | 0       | force-disabled in `main`                                                                      |
+| setting          | default | menu (button numbers)                                                     |
+| ---------------- | ------- | ------------------------------------------------------------------------- |
+| teams            | 0       | toggle (2 on / 3 off). Shuffle (25) also turns it on                      |
+| teams_count      | 2       | ±1, 2..4 (4/5). 2 = red/blue, 3 = +green, 4 = +yellow                     |
+| starter_period   | 60 s    | ±10, 10..600 (6/7)                                                        |
+| grace_period     | 1800 s  | ±60, 60..7200 (8/9)                                                       |
+| border_size      | 2000    | ±100, 100..20000 (10/11). Size the border opens to over 5s at start       |
+| border_mid       | 160     | ±10 (12/13). Reached exactly when grace ends                              |
+| border_end       | 20      | ±5 (14/15). The final shrink target                                       |
+| border_delay     | 130 s   | none. Seconds into main before the final shrink starts                    |
+| border_end_time  | 1250 s  | none. Duration of the final shrink                                        |
+| cut_clean        | 1       | toggle (16/17)                                                            |
+| speed_uhc        | 1       | toggle (18/19)                                                            |
+| patch_grindstone_exploit | 1 | none                                                                   |
+| singleplayer     | 0       | toggle (23/24)                                                            |
+
+Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 = back to lobby (only works in period 3), 25 = shuffle teams. **Core owns 1–99, and games use 100+.** Out-of-range values are clamped by `setup/step`. `start` also keeps `border_end ≤ border_mid ≤ border_size`.
 
 ### Key `internal` fake players
 
-- `period`: the game state.
-- `time` / `time_s`: the clock.
-- `time_left`: shown in the bossbar.
-- `riser_height`: current lava Y.
-- `rise_time`: ticks since the last rise.
-- `alive`, `alive_red`, `alive_blue`, `alive_green`: players still alive.
-- `players`: set by `fm:players/count`.
-- `can_start*`: start validation flags.
-- `1`: the constant 1.
+- `period`, `time` (0–19), `time_s`, `time_left`.
+- `alive`, `alive_red`, `alive_blue`, `alive_green`, `alive_yellow`: counted from `core.alive` at the start of main, then **decremented** on death. Offline players still count, so a game doesn't end because someone disconnected.
+- `contenders`: players alive, or teams with someone alive (+1 in singleplayer).
+- `players`: set by `util/count_players` (non-spectators).
+- `clicked`: the setup button being handled.
+- `picked`: the team trigger being handled.
+- `can_start`: set by the start_check hook.
 - `defaults`: the run-once guard.
 - `setup`: "menu already shown".
-- `debug`: 77 means debug mode.
+- `center_set`: the center has been chosen.
+- Scratch values: `delta`, `shuffle`, `team_index`.
 
-## Riser (lava) mechanics
+### Tags
 
-- When the main phase starts, `system/period/main` summons an invisible marker armor stand tagged `riser` at the play area center, at Y -64 (or 0 in legacy). Any old riser is killed first.
-- `system/riser/main` runs as the riser every tick in period 2:
-  1. If `clear_illegal_blocks` is on, it replaces `#lavarising:illegal` blocks (water, kelp, seagrass, coral, sea pickles) with air, from the riser's Y up to Y+3, across the area.
-  2. It sets `riser_height` to the armor stand's Y − 1.
-  3. If `riser_height < rise_height_limit`, it runs `system/riser/time`. That counts `rise_time` up, and at `rise_ticks` it calls `go`.
-- `go` teleports the riser up 1 block. It then fills one lava layer in 4 quadrants (±80 on x/z around the riser, 161×161 in total). The quadrants run at 0, 2, 4 and 6 ticks via `schedule`, which spreads out the lag and keeps each `fill` under the 32768-block limit. The quadrant functions re-find the riser with `execute at @e[tag=riser,limit=1]`.
-- Falling-block culling (`system/performance/nearby_blocks`) kills falling blocks whose Y − `kill_nearby_distance` is ≤ `riser_height`.
-- The lava fills and illegal-block clears are **relative to the riser** (`~-80..~80`), so the riser's x/z is the play area center.
+- `core.alive`: still in the game (main period).
+- `win`: a winner.
+- `core.cc`: an item entity cut clean has already checked.
 
-### Play area center
+### Storage
 
-- It's stored in `storage lavarising:center {x, z}` (for macros), plus the `center_x` / `center_z global` scores (for display). `center_set internal` means it has been chosen.
-- **Default:** in period -1, if `center_set` is unset, `main` runs `system/center/set` as the first player (`@a[limit=1]`). `defaults` resets `center_set`. `load` seeds the storage with 0,0 so macros never fail.
-- **Set here:** the menu button (trigger 21) runs `setup/center/here`. It calls `set` and then teleports everyone to the clicker.
-- `system/center/set` stores @s's x/z, runs `setworldspawn` there (so respawns land inside the area), then calls `apply`.
-- `system/center/apply` (macro) kills loaded risers, runs `worldborder center`, `forceload remove all`, then `forceload add` ±80 around the center.
-- The riser is only summoned when the main period starts, by `system/center/riser` (macro, called from `system/period/main`). It's placed at the center, at Y -64 (or 0 in legacy).
+- `core:config {title, start_subtitle, main_subtitle}`: shown via `nbt` text components in the menu header, titles, the main-period announcement and the bossbar.
+- `core:center {x, z}`: the play area center.
+- `core:border {size, time}`: scratch values for `border/set`.
+
+## Systems
+
+### Setup panel
+
+- The menu is rendered by `setup/menu` as `@s`. Rows use the macros `setup/ui/section {label}`, `setup/ui/toggle {label, score, on, off}` and `setup/ui/number {label, score, down, up}`.
+- **Menu buttons never click-run `/function`.** Since 1.21.6, that shows a "run this command?" confirmation for op-level commands. Buttons run `/trigger setup set <n>` instead. `setup/trigger` copies the value into `clicked internal`, resets it, and calls `setup/dispatch` only in the lobby. In period 3 it only accepts 22.
+- Dispatch actions are `setup/toggle {score, value}` or `setup/step {score, delta, min, max}`. Both play a sound (`sfx/on` for on or up, `sfx/off` for off or down) and **re-render the menu**. Any custom action must end in `core:setup/sfx/on` or `core:setup/sfx/off` for the same reason.
+- Anyone can use the menu. It's trust-based, like the original.
+
+### Teams
+
+- Teams `red`, `blue`, `green` and `yellow` are created in `load`. Team ids equal their colour names, and macros rely on that.
+- Players join with `/trigger team set 1..4` (the Join buttons). This only works in the lobby, with teams on, and for team numbers ≤ `teams_count`. Shuffle spreads the non-spectators round-robin in random order.
+- `teams/ready` returns 1 when every playing team has a non-spectator and no non-spectator is outside the playing teams.
+- Elimination and win logic is **not** copy-pasted per colour. `elimination/death` uses `@s[team=x]` lines, and `win/team` is a macro. **Adding a team colour** means touching: `load` (team add), `teams/pick`, `teams/shuffle_next`, `teams/ready`, the `setup/menu` join rows, `elimination/count`, `elimination/death`, and `win/check` (contender count + win line with firework colours). Then raise the `teams_count` max in `setup/dispatch`.
 
 ### World border
 
-- Pre-game: 10.
-- `start_c`: expands over 5s to a size that depends on the `grace_period` bucket (444…2222).
-- Grace (`system/border/grace`): shrinks to 160 over roughly `grace_period + 190` seconds. The legacy version uses roughly `grace_period` seconds.
-- Main: `system/period/main` schedules `system/border/main` 130s later, which shrinks the border to 20 over 1250s.
-- These three bucket tables are hand-written in 100s steps. Keep them in sync if you change one.
+- Lobby: size 10 around the center.
+- Starter: opens to `border_size` over 5s.
+- Grace: shrinks to `border_mid` over exactly `grace_period` seconds.
+- Main: at `time_s = border_delay`, it shrinks to `border_end` over `border_end_time` seconds. This is driven from `period/tick`, not `schedule`, so `reset` has nothing to cancel.
+- All sizes go through the `border/set {size, time}` macro.
 
-## Deaths, teams, wins
+### Play area center
 
-- Deaths only count in period 2. A death puts the player in spectator mode and decrements `alive`, plus `alive_<team>` in team games. It also announces the death and plays thunder.
-- Teams `red`, `blue` and `green` are created in `load`. Players are assigned manually with `/team join`. `start` refuses to start if teams are on and any player is outside the allowed teams, or if an allowed team is empty.
-- Solo win: when `alive ≤ 1`, the remaining survival player gets tagged `win`, then `system/win/solos/go` runs.
-- Team wins: when exactly one team has `alive_<team> ≥ 1`, that team's `go_<color>` runs.
-- `win/**/go*` sets period 3, shows the title, gives everyone resistance, launches fireworks at the winners, and makes the winners glow.
-- The `start_c` → next-game path clears the `win` tags. There is no automatic world or riser reset between games: a new game needs a fresh world, or `period` set back to -1 and the riser moved back.
+- In the lobby, if `center_set` is unset, `tick` runs `center/set` as the first player. `defaults` clears `center_set`. `load` seeds the storage with 0,0.
+- The Set here button (21) runs `setup/center_here`. It calls `center/set` and then teleports everyone to the clicker.
+- `center/set` stores @s's x/z, runs `setworldspawn` there, then calls `center/apply` (macro). That runs `worldborder center` and `#core:hooks/center`.
+- `center/gather` (macro) teleports everyone to the surface at the center. `reset` uses it.
+- Nothing is forceloaded. If a game needs loaded chunks (fills, markers), forceload them in the `center` hook.
+
+### Eliminations and wins
+
+- Deaths only eliminate in period 2, and only for players with `core.alive`. Earlier deaths just respawn at world spawn (the center).
+- `elimination/death`: removes `core.alive`, switches the player to spectator, decrements the counters, announces the death (the selector shows the team colour), plays thunder, and runs the `death` hook.
+- `win/check`: if `contenders ≤ 1`, the result is a solo win, a team win, or a draw (nobody left, e.g. simultaneous deaths). `win/solo`, `win/team` and `win/draw` each set the title and chat message, and then call `win/finish`. `win/finish` sets period 3, plays the sound, prints the Back to lobby button, and runs the `win` hook.
+- Titles always send `subtitle` before `title`.
+
+### Modules
+
+- **Cut Clean**: every item entity without `core.cc` is checked once. Raw ores, ore blocks (`#core:cut_clean/*`) and raw meat/fish have their `Item.id` swapped to the smelted item in place. This keeps the stack count (1:1, so Fortune still matters) and plays a smoke puff. To add an item, add one line to `modules/cut_clean/item`.
+- **Speed UHC**: survival players holding an `#minecraft:enchantable/mining` item without Efficiency get Efficiency II. The grindstone patch (`patch_grindstone_exploit`) deletes grindstones within 5 blocks of players and clears them from inventories every tick, because otherwise grinding off the free enchant is an infinite XP source.
 
 ## Conventions
 
-- Each file starts with a `# LAVARISING <area>` header. `##` marks sub-notes. There are two blank lines after the header.
+- Each file starts with a `# CORE <area>` header (`# GAME <area>` in the game namespace, `# CUT CLEAN` / `# SPEED UHC` for modules). `##` marks sub-notes. There are two blank lines after the header, and two blank lines before a trailing hook call.
 - Settings go in `global`, runtime state in `internal`. Toggles use `matches 1..` / `unless ... matches 1..`.
-- Chat prefixes: `[X]` (red) for errors, `[!]` for announcements, `[☠]` for eliminations. They use `dark_gray` brackets.
-- **Menu buttons never click-run `/function`.** Since 1.21.6, that shows a "run this command?" confirmation screen for any op-level command. Buttons run `/trigger setup set <n>` instead, and `setup/trigger` dispatches on the value: 1 = menu, 2–19 = option on/off/down/up, 20 = start, 21 = set center here. Pick an unused number for a new button.
-- Every setup action calls `setup/sfx/on` or `setup/sfx/off`, which plays a sound and **re-renders `setup/go`**.
-- **Adding a setting** requires changes in these places:
-  - a default in `defaults`
-  - a menu line in `setup/go` (clicks use `/trigger setup set <n>`)
-  - a dispatch line for each `<n>` in `setup/trigger`
-  - the `setup/<name>/{on,off}` or `{up,down}` files
-  - a clamp in `main` (optional)
+- Chat prefixes: `[X]` (red) for errors (`util/error`, which tells @s, plays bass and fails), `[!]` for announcements (`util/announce`, green, or red for phase changes), `[☠]` for eliminations. They use `dark_gray` brackets.
+- Prefer `return run` dispatch and single `execute if score period internal matches N run function ...` gates over repeating the period check on every line.
+- Macro arguments are interpolated into JSON strings, so messages must not contain `"`.
+- **Adding a game setting** (in the `game` namespace, no core edits):
+  - a default in `game:on/defaults`
+  - a row in `game:on/menu` via `core:setup/ui/*`, with button numbers 100+
+  - dispatch lines in `game:on/setup_trigger` via `core:setup/toggle` / `core:setup/step`
   - then use the setting wherever it is needed
-- Team logic is copy-pasted per colour. Any change to `death/teams/go_*`, `win/teams/go_*` or `win/teams-*/check` must be applied to red, blue **and** green.
-- Nearly every line in `main` and `time` gates on `period` itself. Keep that pattern, or better, group lines under a single `execute if score period internal matches N run function ...`.
+- When starting a new minigame from this template: copy the pack, then fill in `data/game`. Rename `game` if you like, and update the ids in `core/tags/function/hooks/*.json` to match. Set `core:config` in `game:on/load`, and update `pack.mcmeta`, `pack.png` and this file.
 
-## Known bugs / improvement ideas (not yet fixed)
+## Known limitations / ideas
 
-- `system/death/*` runs `scoreboard players reset @s death`, but that objective doesn't exist. It's harmless because `main` resets `player.death`.
-- `win/teams/go_green`'s title color is `blue`. The header comment in `go_blue` says "teams red", and the one in `go_green` says "teams blue".
-- Team `admin` is referenced in `time` but never created.
-- A solo game where the last players die on the same tick (`alive` = 0) ends with no winner tagged.
-- `eliminate_on_disconnect` is stubbed out. `system/death/disconnect` exists but is never reached. Items from the old todo list that are still open: announce team eliminations, and eliminate players on disconnect.
-- `cut_clean` matches items by English display name (`name="Raw Iron"`) and runs 3 selectors per item type every tick. It would be better to do one `as @e[type=item]` pass that checks `Item.id` (or uses an item predicate) and then dispatches. Also, 1.16-era ore names don't drop as items in 1.21.
-- `speed_uhc` runs `enchant @a efficiency 2` every tick. That only affects held items, and it spams errors on items that can't be enchanted.
-- `grindstone` runs a `fill` in an 11³ box around every player every tick.
-- `time`'s last_login block re-evaluates `as @a` plus the period check on about 24 lines every tick. It could dispatch once per period to a function.
-- 1.21 features that could simplify things:
-  - `return` and `execute if function` for guard clauses
-  - function macros for the per-team copies and the border bucket tables
-  - `execute summon` / `on`
-  - item components
+- `reset` doesn't restore the world. Use a fresh world, or have the game clean up in its `reset` hook.
+- There is no eliminate-on-disconnect option. Offline alive players keep their slot until they return.
+- Anyone can use the setup menu. A permission model (e.g. only players tagged `host`) would gate `setup/trigger`.
+- The grindstone patch still runs a `fill` in an 11³ box around every player every tick.
+- A game whose main period ends on a timer (not last-standing) needs to call `win/*` itself from its hooks.

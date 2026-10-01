@@ -1,0 +1,5 @@
+{
+    "values": [
+        { "id": "game:on/reset", "required": false }
+    ]
+}

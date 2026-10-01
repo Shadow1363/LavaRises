@@ -1,0 +1,5 @@
+{
+    "values": [
+        { "id": "game:on/start_check", "required": false }
+    ]
+}

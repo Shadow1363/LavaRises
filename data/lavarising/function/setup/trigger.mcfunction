@@ -33,5 +33,10 @@ execute if score @s setup matches 17 run return run function lavarising:setup/le
 # singleplayer
 execute if score @s setup matches 18 run return run function lavarising:setup/singleplayer/on
 execute if score @s setup matches 19 run return run function lavarising:setup/singleplayer/off
+# hazard
+execute if score @s setup matches 22 run return run function lavarising:setup/hazard/lava
+execute if score @s setup matches 23 run return run function lavarising:setup/hazard/water
+execute if score @s setup matches 24 run return run function lavarising:setup/hazard/powder_snow
+execute if score @s setup matches 25 run return run function lavarising:setup/hazard/void
 # start
 execute if score @s setup matches 20 run return run function lavarising:start

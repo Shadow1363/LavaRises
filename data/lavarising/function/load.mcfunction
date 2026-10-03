@@ -19,6 +19,9 @@ bossbar add lavarising:main ""
 bossbar set lavarising:main color red
 bossbar set lavarising:main players @a
 
+# hazard contact checks (water, void)
+scoreboard objectives add player.y dummy
+
 # track player deaths
 scoreboard objectives add player.death deathCount
 

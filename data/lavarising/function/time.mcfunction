@@ -32,7 +32,10 @@ execute if score period internal matches 1 run bossbar set lavarising:main color
 execute if score period internal matches 1 store result bossbar lavarising:main max run scoreboard players get grace_period global
 execute if score period internal matches 1 store result bossbar lavarising:main value run scoreboard players get time_s internal
 ## main period (2)
-execute if score period internal matches 2 run bossbar set lavarising:main name ["",{"text":"LAVA RISING \u0020 \u0020","color":"red","bold":true},{"text":"Currently at Y: ","color":"white"},{"score":{"name":"riser_height","objective":"internal"},"color":"red","bold":true}]
+execute if score period internal matches 2 if score hazard global matches 0 run bossbar set lavarising:main name ["",{"text":"LAVA RISING \u0020 \u0020","color":"red","bold":true},{"text":"Currently at Y: ","color":"white"},{"score":{"name":"riser_height","objective":"internal"},"color":"red","bold":true}]
+execute if score period internal matches 2 if score hazard global matches 1 run bossbar set lavarising:main name ["",{"text":"WATER RISING \u0020 \u0020","color":"aqua","bold":true},{"text":"Currently at Y: ","color":"white"},{"score":{"name":"riser_height","objective":"internal"},"color":"aqua","bold":true}]
+execute if score period internal matches 2 if score hazard global matches 2 run bossbar set lavarising:main name ["",{"text":"SNOW RISING \u0020 \u0020","color":"white","bold":true},{"text":"Currently at Y: ","color":"white"},{"score":{"name":"riser_height","objective":"internal"},"color":"white","bold":true}]
+execute if score period internal matches 2 if score hazard global matches 3 run bossbar set lavarising:main name ["",{"text":"VOID RISING \u0020 \u0020","color":"dark_purple","bold":true},{"text":"Currently at Y: ","color":"white"},{"score":{"name":"riser_height","objective":"internal"},"color":"dark_purple","bold":true}]
 execute if score period internal matches 2 run bossbar set lavarising:main color red
 execute if score period internal matches 2 store result bossbar lavarising:main max run scoreboard players get rise_ticks global
 execute if score period internal matches 2 store result bossbar lavarising:main value run scoreboard players get rise_time internal

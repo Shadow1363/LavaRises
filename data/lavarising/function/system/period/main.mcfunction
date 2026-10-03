@@ -29,9 +29,19 @@ execute if score singleplayer global matches 1.. unless score debug internal mat
 execute if score singleplayer global matches 1.. unless score debug internal matches 77 run scoreboard players operation alive_blue internal += 1 internal
 
 # announce
-title @a title ["",{"text":"LAVA RISING","color":"red","bold":true}]
-title @a subtitle "The lava has begun rising!"
-tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"red","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The lava has begun rising!","color":"yellow"}]
+## per hazard
+execute if score hazard global matches 0 run title @a title ["",{"text":"LAVA RISING","color":"red","bold":true}]
+execute if score hazard global matches 0 run title @a subtitle "The lava has begun rising!"
+execute if score hazard global matches 0 run tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"red","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The lava has begun rising!","color":"yellow"}]
+execute if score hazard global matches 1 run title @a title ["",{"text":"WATER RISING","color":"aqua","bold":true}]
+execute if score hazard global matches 1 run title @a subtitle "The water has begun rising!"
+execute if score hazard global matches 1 run tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"red","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The water has begun rising! Don't get caught swimming.","color":"yellow"}]
+execute if score hazard global matches 2 run title @a title ["",{"text":"SNOW RISING","color":"white","bold":true}]
+execute if score hazard global matches 2 run title @a subtitle "The powder snow has begun rising!"
+execute if score hazard global matches 2 run tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"red","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The powder snow has begun rising! Leather boots let you walk on it.","color":"yellow"}]
+execute if score hazard global matches 3 run title @a title ["",{"text":"VOID RISING","color":"dark_purple","bold":true}]
+execute if score hazard global matches 3 run title @a subtitle "The void has begun rising!"
+execute if score hazard global matches 3 run tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"red","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The void has begun rising! The world below is disappearing.","color":"yellow"}]
 # sfx
 execute as @a at @s run playsound block.note_block.pling player @s ~ ~ ~ 100 0.8
 execute as @a at @s run playsound entity.lightning_bolt.impact player @s ~ ~ ~

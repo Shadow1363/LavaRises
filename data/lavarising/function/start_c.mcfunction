@@ -8,7 +8,10 @@ effect clear @a
 
 # announce
 title @a title ["",{"text":"LAVA RISING","color":"red","bold":true}]
-title @a subtitle "Gather resources before the lava begins to rise."
+execute if score hazard global matches 0 run title @a subtitle "Gather resources before the lava begins to rise."
+execute if score hazard global matches 1 run title @a subtitle "Gather resources before the water begins to rise."
+execute if score hazard global matches 2 run title @a subtitle "Gather resources before the powder snow begins to rise."
+execute if score hazard global matches 3 run title @a subtitle "Gather resources before the void begins to rise."
 tellraw @a ["",{"text":"[","color":"dark_gray"},{"text":"!","color":"green","bold":true},{"text":"] ","color":"dark_gray"},{"text":"The game has started!","color":"yellow"}]
 # sfx
 execute as @a at @s run playsound entity.generic.explode player @s ~ ~ ~

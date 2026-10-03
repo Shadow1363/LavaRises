@@ -18,4 +18,7 @@ schedule function lavarising:system/riser/quadrants/3-bottomright 6t
 ## pretty redundant, already displayed in the bossbar
 #title @a actionbar ["",{"text":"The lava has risen to Y: ","color":"red"},{"score":{"name":"riser_height","objective":"internal"},"color":"dark_red","bold":true}]
 # sfx
-execute if score sfx global matches 1.. as @a at @s run playsound block.lava.pop block @s
+execute if score sfx global matches 1.. if score hazard global matches 0 as @a at @s run playsound block.lava.pop block @s
+execute if score sfx global matches 1.. if score hazard global matches 1 as @a at @s run playsound item.bucket.empty block @s
+execute if score sfx global matches 1.. if score hazard global matches 2 as @a at @s run playsound block.powder_snow.place block @s
+execute if score sfx global matches 1.. if score hazard global matches 3 as @a at @s run playsound block.respawn_anchor.deplete block @s

@@ -95,6 +95,7 @@ Objectives:
 - `falling_blocks`: scratch value.
 - `player.death`: `deathCount`.
 - `player.leave`: `minecraft.custom:minecraft.leave_game`.
+- `player.y`: scratch value for the hazard contact checks.
 
 ### Settings (`<name> global`)
 
@@ -104,6 +105,7 @@ Objectives:
 | grace_period (s)                                  | 1800    | ±30 in the menu, range 400..2090. `main` resets values below 400 to **1200**                  |
 | rise_ticks                                        | 80      | ±1, range 1..5981                                                                             |
 | rise_height_limit (Y)                             | 316     | ±1, min 1. Max 320, or 255 in legacy. `main` forces 251 if legacy is on and the value is ≥257 |
+| hazard                                            | 0       | menu picker (triggers 22–25): 0 lava, 1 water, 2 powder snow, 3 void. `main` resets out-of-range values to 0 |
 | teams                                             | 0       | toggle                                                                                        |
 | teams_count                                       | 2       | **no menu**. 2 = red/blue, 3 = red/blue/green                                                 |
 | cut_clean                                         | 1       | toggle                                                                                        |
@@ -143,6 +145,22 @@ Objectives:
 - Falling-block culling (`system/performance/nearby_blocks`) kills falling blocks whose Y − `kill_nearby_distance` is ≤ `riser_height`.
 - The lava fills and illegal-block clears are **relative to the riser** (`~-80..~80`), so the riser's x/z is the play area center.
 
+### Hazard (`hazard global`)
+
+What rises is configurable. "Lava" in the rest of this file means whichever hazard is selected.
+
+| value | hazard      | layer filled with | how it kills                                                                                       |
+| ----- | ----------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| 0     | lava        | `lava`            | vanilla lava damage                                                                                |
+| 1     | water       | `water`           | `system/hazard/water`: 2 `drown` damage per hit (i-frames → ~4 HP/s) when feet Y ≤ `riser_height` and in `#lavarising:water_hazard` |
+| 2     | powder snow | `powder_snow`     | vanilla freezing. Leather boots let players walk on it                                             |
+| 3     | void        | `air`             | `system/hazard/void`: `out_of_world` damage when feet Y ≤ `riser_height`, so blocks placed below the cleared layer don't save anyone |
+
+- The quadrant functions have one gated `fill` line per hazard.
+- `clear_illegal_blocks` only runs for lava. In water mode it would delete the newly placed water layer.
+- Rise SFX, the `start_c` subtitle, the `system/period/main` announcement and the period-2 bossbar title all have one line per hazard.
+- Adding a hazard means touching all of those, plus `defaults`, the `main` clamp, `setup/go`, `setup/trigger` and `setup/hazard/<name>`.
+
 ### Play area center
 
 - It's stored in `storage lavarising:center {x, z}` (for macros), plus the `center_x` / `center_z global` scores (for display). `center_set internal` means it has been chosen.
@@ -174,7 +192,7 @@ Objectives:
 - Each file starts with a `# LAVARISING <area>` header. `##` marks sub-notes. There are two blank lines after the header.
 - Settings go in `global`, runtime state in `internal`. Toggles use `matches 1..` / `unless ... matches 1..`.
 - Chat prefixes: `[X]` (red) for errors, `[!]` for announcements, `[☠]` for eliminations. They use `dark_gray` brackets.
-- **Menu buttons never click-run `/function`.** Since 1.21.6, that shows a "run this command?" confirmation screen for any op-level command. Buttons run `/trigger setup set <n>` instead, and `setup/trigger` dispatches on the value: 1 = menu, 2–19 = option on/off/down/up, 20 = start, 21 = set center here. Pick an unused number for a new button.
+- **Menu buttons never click-run `/function`.** Since 1.21.6, that shows a "run this command?" confirmation screen for any op-level command. Buttons run `/trigger setup set <n>` instead, and `setup/trigger` dispatches on the value: 1 = menu, 2–19 = option on/off/down/up, 20 = start, 21 = set center here, 22–25 = hazard lava/water/powder snow/void. Pick an unused number for a new button.
 - Every setup action calls `setup/sfx/on` or `setup/sfx/off`, which plays a sound and **re-renders `setup/go`**.
 - **Adding a setting** requires changes in these places:
   - a default in `defaults`

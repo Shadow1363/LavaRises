@@ -29,6 +29,11 @@ scoreboard players set grace_period global 1800
 ## something you can disable
 scoreboard players set rise_height_limit global 316
 
+# hazard
+## what rises from the bottom of the world
+## 0 = lava, 1 = water, 2 = powder snow, 3 = void
+scoreboard players set hazard global 0
+
 # rise ticks
 ## interval between rising
 ## lower than before due to starting at -64

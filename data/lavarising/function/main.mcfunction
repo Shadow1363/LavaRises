@@ -28,6 +28,8 @@ execute if score speed_uhc global matches 1.. if score patch_grindstone_exploit 
 execute unless score starter_period global matches 10.. run scoreboard players set starter_period global 10
 ## grace period
 execute unless score grace_period global matches 400.. run scoreboard players set grace_period global 1200
+## hazard
+execute unless score hazard global matches 0..3 run scoreboard players set hazard global 0
 ## rise height limit
 execute if score legacy global matches 1.. if score rise_height_limit global matches 257.. run function lavarising:setup/range/rise_height_limit
 
@@ -38,6 +40,11 @@ execute if score period internal matches 2 if score kill_nearby_falling_blocks g
 
 # riser main
 execute if score period internal matches 2 as @e[tag=riser,limit=1] at @s run function lavarising:system/riser/main
+
+# hazard contact
+## lava and powder snow (freezing) hurt on their own
+execute if score period internal matches 2 if score hazard global matches 1 as @a[gamemode=survival] at @s run function lavarising:system/hazard/water
+execute if score period internal matches 2 if score hazard global matches 3 as @a[gamemode=survival] at @s run function lavarising:system/hazard/void
 
 # time loop
 function lavarising:time

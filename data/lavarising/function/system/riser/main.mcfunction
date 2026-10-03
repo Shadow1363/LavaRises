@@ -5,10 +5,11 @@
 # remove #illegal blocks
 ## works in the same 4 quadrants as when rising
 ## see system/riser/go for more info!
-execute if score clear_illegal_blocks global matches 1.. run fill ~-80 ~ ~-80 ~ ~3 ~ air replace #lavarising:illegal
-execute if score clear_illegal_blocks global matches 1.. run fill ~80 ~ ~-80 ~ ~3 ~ air replace #lavarising:illegal
-execute if score clear_illegal_blocks global matches 1.. run fill ~-80 ~ ~80 ~ ~3 ~ air replace #lavarising:illegal
-execute if score clear_illegal_blocks global matches 1.. run fill ~80 ~ ~80 ~ ~3 ~ air replace #lavarising:illegal
+## lava only, water would wipe the water hazard's own layer
+execute if score hazard global matches 0 if score clear_illegal_blocks global matches 1.. run fill ~-80 ~ ~-80 ~ ~3 ~ air replace #lavarising:illegal
+execute if score hazard global matches 0 if score clear_illegal_blocks global matches 1.. run fill ~80 ~ ~-80 ~ ~3 ~ air replace #lavarising:illegal
+execute if score hazard global matches 0 if score clear_illegal_blocks global matches 1.. run fill ~-80 ~ ~80 ~ ~3 ~ air replace #lavarising:illegal
+execute if score hazard global matches 0 if score clear_illegal_blocks global matches 1.. run fill ~80 ~ ~80 ~ ~3 ~ air replace #lavarising:illegal
 
 # store position
 ## used for calculations involving current height

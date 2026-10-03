@@ -45,10 +45,16 @@ data/core/
     teams/        pick (trigger), join {team,name}, shuffle, shuffle_next, ready
     elimination/  count, death
     win/          check, solo, team {..}, draw, finish
-    modules/      cut_clean/{tick,item,smelt}, speed_uhc/{tick,grindstone}
+    modules/      cut_clean/{tick,item,smelt}, speed_uhc/{tick,grindstone},
+                  throwable_knockback/{config,tick,projectile,sweep},
+                  arrow_break/{config,tick,arrow,sweep},
+                  cheaper_items/{tick,enable,disable,player_on,player_off,recipes}
   tags/function/hooks/*.json   -> game:on/<hook> (required: false)
   tags/block/safe.json         blocks a lobby player's head may be in
+  tags/block/arrow_break.json  blocks arrows break (leaves, glass, panes)
+  tags/entity_type/{throwable_knockback,arrow_break}.json   which projectiles each module affects
   tags/item/cut_clean/*.json   ore blocks that smelt (silk touch)
+  recipe/cheaper_items/*.json  the cheaper recipes
 data/game/function/on/         the game's hook stubs (see Hooks)
 ```
 
@@ -56,42 +62,42 @@ data/game/function/on/         the game's hook stubs (see Hooks)
 
 Each `#core:hooks/<name>` tag points to `game:on/<name>` with `required: false`. That means a game can delete stubs it doesn't need, or add more functions to a tag.
 
-| hook            | when / context                                                                                                 |
-| --------------- | -------------------------------------------------------------------------------------------------------------- |
-| `load`          | end of `core:load`, every `/reload`. Set `storage core:config {title, start_subtitle, main_subtitle}` here      |
-| `defaults`      | inside `core:defaults` (runs once, same guard), before the first `reset`                                       |
-| `tick`          | end of `core:tick`, every tick                                                                                 |
-| `menu`          | as the viewer, inside `setup/menu`, between Extras and Testing                                                 |
-| `setup_trigger` | as the clicker, lobby only, when no core button matched. `clicked internal` is the button number (100+)        |
-| `start_check`   | as the clicker, after core's start checks pass. Print why, then set `can_start internal` to 0 to block         |
-| `start`         | end of `period/starter` (period 0)                                                                             |
-| `grace`         | end of `period/grace` (period 1)                                                                               |
-| `main`          | end of `period/main` (period 2). Alive players are tagged `core.alive`                                         |
-| `bossbar`       | every tick, after core sets `bossbar core:main`. Override it here                                              |
-| `death`         | as/at a player eliminated in main, after the counters and announcement                                         |
-| `win`           | end of `win/finish` (period 3). Winners are tagged `win`, with none on a draw                                  |
-| `reset`         | end of `core:reset` (back to the lobby, and also on the very first load)                                       |
-| `center`        | end of `center/apply`, when the play area center moved. Read `storage core:center {x, z}`                      |
+| hook            | when / context                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| `load`          | end of `core:load`, every `/reload`. Set `storage core:config {title, start_subtitle, main_subtitle}` here |
+| `defaults`      | inside `core:defaults` (runs once, same guard), before the first `reset`                                   |
+| `tick`          | end of `core:tick`, every tick                                                                             |
+| `menu`          | as the viewer, inside `setup/menu`, between Extras and Testing                                             |
+| `setup_trigger` | as the clicker, lobby only, when no core button matched. `clicked internal` is the button number (100+)    |
+| `start_check`   | as the clicker, after core's start checks pass. Print why, then set `can_start internal` to 0 to block     |
+| `start`         | end of `period/starter` (period 0)                                                                         |
+| `grace`         | end of `period/grace` (period 1)                                                                           |
+| `main`          | end of `period/main` (period 2). Alive players are tagged `core.alive`                                     |
+| `bossbar`       | every tick, after core sets `bossbar core:main`. Override it here                                          |
+| `death`         | as/at a player eliminated in main, after the counters and announcement                                     |
+| `win`           | end of `win/finish` (period 3). Winners are tagged `win`, with none on a draw                              |
+| `reset`         | end of `core:reset` (back to the lobby, and also on the very first load)                                   |
+| `center`        | end of `center/apply`, when the play area center moved. Read `storage core:center {x, z}`                  |
 
 ## Tick flow (`core:tick`)
 
 1. Lobby only: if `center_set` is unset, set the center to the first player's position. The pre-game actionbar hint appears. Players whose head is in a block not in `#core:safe` are teleported up 5 blocks.
 2. The menu is shown once to everyone, keyed by the global `setup internal`. `reset` clears it so the menu appears again.
 3. Triggers: `setup` and `team` are enabled for `@a`, and anyone with a value runs `setup/trigger` or `teams/pick`.
-4. Modules: `cut_clean` and `speed_uhc` run when they are on.
+4. Modules: `cut_clean` and `speed_uhc` run when they are on. `throwable_knockback` and `arrow_break` run when they are on, in periods 0–2 only, so the lobby can't be griefed. `cheaper_items/tick` always runs, because it also applies the off state.
 5. `period/tick`: the clock (periods 0–2), period transitions, the final border shrink, the bossbar, then `player/apply` for anyone whose `last_login ≠ period`.
 6. Period 2: `elimination/death` runs for `core.alive` players with `player.death ≥ 1`. Then `player.death` is reset for everyone, and `win/check` runs.
 7. `#core:hooks/tick`.
 
 ## Game state machine — `period internal`
 
-| value | phase                          | entered via                                  | player state (`player/*`, applied once per period)                                         |
-| ----- | ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| -1    | lobby                          | `core:reset`                                 | adventure, infinite weakness/resistance/regen/saturation. Clears `core.alive` and `win`     |
-| 0     | starter (no PvP)               | `start` → `period/starter`                   | survival (unless spectator), resistance                                                    |
-| 1     | grace (PvP on, border shrinks) | `period/grace` when `time_s >= starter_period` | survival (unless spectator), no effects                                                  |
-| 2     | main (deaths eliminate)        | `period/main` when `time_s >= grace_period`  | no effects. Players without `core.alive` (joined late) become spectators                   |
-| 3     | game over                      | `win/finish`                                 | non-winners become spectators, all get resistance, winners glow                            |
+| value | phase                          | entered via                                    | player state (`player/*`, applied once per period)                                      |
+| ----- | ------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------- |
+| -1    | lobby                          | `core:reset`                                   | adventure, infinite weakness/resistance/regen/saturation. Clears `core.alive` and `win` |
+| 0     | starter (no PvP)               | `start` → `period/starter`                     | survival (unless spectator), resistance                                                 |
+| 1     | grace (PvP on, border shrinks) | `period/grace` when `time_s >= starter_period` | survival (unless spectator), no effects                                                 |
+| 2     | main (deaths eliminate)        | `period/main` when `time_s >= grace_period`    | no effects. Players without `core.alive` (joined late) become spectators                |
+| 3     | game over                      | `win/finish`                                   | non-winners become spectators, all get resistance, winners glow                         |
 
 - Each transition resets `time` and `time_s` to 0. The main period has no time limit and ends when `win/check` finds ≤ 1 contender.
 - **last_login pattern**: `player/apply` runs when `@s last_login ≠ period` (and for new players, who have no score). It sets `last_login` and dispatches to the period's file. This also handles players who join mid-game.
@@ -106,24 +112,28 @@ Objectives:
 - `last_login`: see the pattern above.
 - `player.death`: `deathCount`.
 - `setup` / `team`: triggers.
+- `core.recipes`: which cheaper-items recipe state a player has (1 on, 0 off).
 
 ### Settings (`<name> global`)
 
-| setting          | default | menu (button numbers)                                                     |
-| ---------------- | ------- | ------------------------------------------------------------------------- |
-| teams            | 0       | toggle (2 on / 3 off). Shuffle (25) also turns it on                      |
-| teams_count      | 2       | ±1, 2..4 (4/5). 2 = red/blue, 3 = +green, 4 = +yellow                     |
-| starter_period   | 60 s    | ±10, 10..600 (6/7)                                                        |
-| grace_period     | 1800 s  | ±60, 60..7200 (8/9)                                                       |
-| border_size      | 2000    | ±100, 100..20000 (10/11). Size the border opens to over 5s at start       |
-| border_mid       | 160     | ±10 (12/13). Reached exactly when grace ends                              |
-| border_end       | 20      | ±5 (14/15). The final shrink target                                       |
-| border_delay     | 130 s   | none. Seconds into main before the final shrink starts                    |
-| border_end_time  | 1250 s  | none. Duration of the final shrink                                        |
-| cut_clean        | 1       | toggle (16/17)                                                            |
-| speed_uhc        | 1       | toggle (18/19)                                                            |
-| patch_grindstone_exploit | 1 | none                                                                   |
-| singleplayer     | 0       | toggle (23/24)                                                            |
+| setting                  | default | menu (button numbers)                                               |
+| ------------------------ | ------- | ------------------------------------------------------------------- |
+| teams                    | 0       | toggle (2 on / 3 off). Shuffle (25) also turns it on                |
+| teams_count              | 2       | ±1, 2..4 (4/5). 2 = red/blue, 3 = +green, 4 = +yellow               |
+| starter_period           | 60 s    | ±10, 10..600 (6/7)                                                  |
+| grace_period             | 1800 s  | ±60, 60..7200 (8/9)                                                 |
+| border_size              | 2000    | ±100, 100..20000 (10/11). Size the border opens to over 5s at start |
+| border_mid               | 160     | ±10 (12/13). Reached exactly when grace ends                        |
+| border_end               | 20      | ±5 (14/15). The final shrink target                                 |
+| border_delay             | 130 s   | none. Seconds into main before the final shrink starts              |
+| border_end_time          | 1250 s  | none. Duration of the final shrink                                  |
+| cut_clean                | 1       | toggle (16/17)                                                      |
+| speed_uhc                | 1       | toggle (18/19)                                                      |
+| patch_grindstone_exploit | 1       | none                                                                |
+| throwable_knockback      | 1       | toggle (26/27)                                                      |
+| arrow_break              | 1       | toggle (28/29)                                                      |
+| cheaper_items            | 1       | toggle (30/31)                                                      |
+| singleplayer             | 0       | toggle (23/24)                                                      |
 
 Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 = back to lobby (only works in period 3), 25 = shuffle teams. **Core owns 1–99, and games use 100+.** Out-of-range values are clamped by `setup/step`. `start` also keeps `border_end ≤ border_mid ≤ border_size`.
 
@@ -139,6 +149,7 @@ Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 
 - `defaults`: the run-once guard.
 - `setup`: "menu already shown".
 - `center_set`: the center has been chosen.
+- `cheaper_items_state`: whether the `limited_crafting` game rule was last set for on (1) or off (0).
 - Scratch values: `delta`, `shuffle`, `team_index`.
 
 ### Tags
@@ -146,12 +157,15 @@ Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 
 - `core.alive`: still in the game (main period).
 - `win`: a winner.
 - `core.cc`: an item entity cut clean has already checked.
+- `core.tkb.done`: a projectile that has already knocked someone back. `core.tkb.hit`, `core.tkb.this` and `core.owner` are scratch tags.
 
 ### Storage
 
 - `core:config {title, start_subtitle, main_subtitle}`: shown via `nbt` text components in the menu header, titles, the main-period announcement and the bossbar.
 - `core:center {x, z}`: the play area center.
 - `core:border {size, time}`: scratch values for `border/set`.
+- `core:config modules.<module>`: numeric/string module config, set by each module's `config` function (see Modules).
+- `core:tmp`: scratch macro arguments (`tkb`, `arrow`).
 
 ## Systems
 
@@ -197,6 +211,37 @@ Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 
 - **Cut Clean**: every item entity without `core.cc` is checked once. Raw ores, ore blocks (`#core:cut_clean/*`) and raw meat/fish have their `Item.id` swapped to the smelted item in place. This keeps the stack count (1:1, so Fortune still matters) and plays a smoke puff. To add an item, add one line to `modules/cut_clean/item`.
 - **Speed UHC**: survival players holding an `#minecraft:enchantable/mining` item without Efficiency get Efficiency II. The grindstone patch (`patch_grindstone_exploit`) deletes grindstones within 5 blocks of players and clears them from inventories every tick, because otherwise grinding off the free enchant is an infinite XP source.
 
+#### Module config
+
+Lists live in JSON files: data tags and recipes. Numbers and modes can't, because functions can't read arbitrary JSON. Those go in each module's `config.mcfunction` instead, as SNBT in `storage core:config modules.<module>`. `core:load` runs the configs on every `/reload`. After that, `game:on/load` can override any of them, e.g. `data modify storage core:config modules.arrow_break.mode set value "replace"`.
+
+| module              | JSON config                                                                                                              | `config.mcfunction`                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| throwable_knockback | `tags/entity_type/throwable_knockback.json` (snowball, egg)                                                              | `damage` (0.01) dealt per hit. Must be > 0            |
+| arrow_break         | `tags/entity_type/arrow_break.json` (arrow, spectral arrow), `tags/block/arrow_break.json` (leaves, all glass and panes) | `mode`: `"destroy"` (drops) or `"replace"` (no drops) |
+| cheaper_items       | `recipe/cheaper_items/*.json` (tnt, arrow, golden_apple)                                                                 | none. List each recipe id in `cheaper_items/recipes`  |
+
+#### Throwable knockback
+
+- Vanilla Java ignores 0-damage hits on players, so snowballs and eggs never knock them back, and advancement triggers don't fire either. The module therefore **predicts** hits instead. Tick functions run before entities move, so for each projectile without `core.tkb.done`, `projectile` reads its Motion. `sweep` (a macro) then tags non-spectator players whose hitbox touches a 1×1×1 box at three points: the projectile's position, half-way along this tick's motion, and the end of it.
+- The thrower is excluded: they're tagged `core.owner` via `execute on origin`.
+- Each hit player gets `damage @s <damage> minecraft:thrown by <projectile>`. This is a normal hit, so the knockback pushes away from the projectile. The projectile is tagged `core.tkb.done` so it only knocks back once, and is otherwise left alone (it still breaks, and eggs can still hatch chicks).
+- The knockback strength is the standard melee-hit strength. Because the hit box is predicted, a projectile that only grazes past a player can still count as a hit.
+
+#### Arrow break
+
+- For each arrow not stuck in the ground, `arrow` samples this tick's path at 0, ¼, ½, ¾ and the full motion. `sweep` (a macro) breaks any `#core:arrow_break` block at those points with `setblock ~ ~ ~ air <mode>`. The block is gone before the arrow moves, so the arrow flies on through **at full speed**.
+- A full-power arrow moves about 3 blocks per tick, so the samples are about 0.75 blocks apart. An arrow just clipping a block's corner can therefore miss it and stick as normal.
+
+#### Cheaper items
+
+- Datapack recipes can't be switched off at runtime, so the toggle uses the `limited_crafting` game rule (`doLimitedCrafting` before 1.21.11). With that rule on, players can only craft recipes they know.
+- **On**: `enable` turns `limited_crafting` off, so everything is craftable. Each player is given the cheaper recipes so they appear in the recipe book.
+- **Off**: `disable` turns `limited_crafting` on. Each player gets `recipe give @s *`, then has the cheaper recipes taken away. Vanilla recipes still work, and the cheaper ones don't. A side effect is that every recipe appears in the recipe book.
+- The per-player state lives in `core.recipes`, so players who join later are handled too. `cheaper_items_state internal` stops the game rule being set again every tick.
+- **To add a cheaper item:** add `recipe/cheaper_items/<name>.json` (1.21.2+ format: ingredients are ids, `#tags` or lists of ids, and the result is `{id, count}`). Then add a `$recipe $(action) @s core:cheaper_items/<name>` line to `cheaper_items/recipes`. The pattern must differ from the vanilla recipe, or the two will clash.
+- If the world (or another pack) relies on `limited_crafting` itself, this module will override it.
+
 ## Conventions
 
 - Each file starts with a `# CORE <area>` header (`# GAME <area>` in the game namespace, `# CUT CLEAN` / `# SPEED UHC` for modules). `##` marks sub-notes. There are two blank lines after the header, and two blank lines before a trailing hook call.
@@ -212,6 +257,8 @@ Other buttons: 1 = re-render the menu, 20 = start, 21 = set the center here, 22 
 - When starting a new minigame from this template: copy the pack, then fill in `data/game`. Rename `game` if you like, and update the ids in `core/tags/function/hooks/*.json` to match. Set `core:config` in `game:on/load`, and update `pack.mcmeta`, `pack.png` and this file.
 
 ## Known limitations / ideas
+
+- `load` seeds `throwable_knockback`, `arrow_break` and `cheaper_items` (to 1) when they are unset. This covers worlds whose defaults ran before these settings existed. Do the same for any setting added later, otherwise it reads as off (and for cheaper items, off changes a game rule).
 
 - `reset` doesn't restore the world. Use a fresh world, or have the game clean up in its `reset` hook.
 - There is no eliminate-on-disconnect option. Offline alive players keep their slot until they return.

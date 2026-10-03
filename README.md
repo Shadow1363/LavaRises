@@ -8,6 +8,11 @@ A Minecraft Java datapack (1.21.11 – 26.3) base for last-player-standing minig
 - **teams**: 2–4 teams, join buttons, shuffle, and team win detection
 - **Cut Clean**: instant smelting of ores and food
 - **Speed UHC**: free Efficiency II, with a grindstone exploit patch
+- **Throwable knockback**: snowballs and eggs knock players back
+- **Arrow break**: arrows smash through leaves and glass without slowing down
+- **Cheaper items**: cheaper recipes (TNT with 1 gunpowder, arrows without feathers, golden apples with 4 gold)
+
+Every extra can be toggled in the panel. Which items, blocks and recipes they affect is set in JSON tags and recipe files (see `CLAUDE.md` → Modules).
 - solo, team and draw endings, plus a **Back to lobby** button
 
 ## Making a game

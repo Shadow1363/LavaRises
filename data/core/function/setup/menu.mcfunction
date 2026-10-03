@@ -31,6 +31,9 @@ tellraw @s ["",{"text":"Center    ","color":"white"},{"score":{"name":"center_x"
 function core:setup/ui/section {label:"Extras"}
 function core:setup/ui/toggle {label:"Cut Clean (instant smelt)",score:"cut_clean",on:16,off:17}
 function core:setup/ui/toggle {label:"Speed UHC",score:"speed_uhc",on:18,off:19}
+function core:setup/ui/toggle {label:"Throwable knockback",score:"throwable_knockback",on:26,off:27}
+function core:setup/ui/toggle {label:"Arrows break glass & leaves",score:"arrow_break",on:28,off:29}
+function core:setup/ui/toggle {label:"Cheaper items",score:"cheaper_items",on:30,off:31}
 
 # the game's own options
 function #core:hooks/menu

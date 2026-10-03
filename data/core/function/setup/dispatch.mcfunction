@@ -32,6 +32,12 @@ execute if score clicked internal matches 16 run return run function core:setup/
 execute if score clicked internal matches 17 run return run function core:setup/toggle {score:"cut_clean",value:0}
 execute if score clicked internal matches 18 run return run function core:setup/toggle {score:"speed_uhc",value:1}
 execute if score clicked internal matches 19 run return run function core:setup/toggle {score:"speed_uhc",value:0}
+execute if score clicked internal matches 26 run return run function core:setup/toggle {score:"throwable_knockback",value:1}
+execute if score clicked internal matches 27 run return run function core:setup/toggle {score:"throwable_knockback",value:0}
+execute if score clicked internal matches 28 run return run function core:setup/toggle {score:"arrow_break",value:1}
+execute if score clicked internal matches 29 run return run function core:setup/toggle {score:"arrow_break",value:0}
+execute if score clicked internal matches 30 run return run function core:setup/toggle {score:"cheaper_items",value:1}
+execute if score clicked internal matches 31 run return run function core:setup/toggle {score:"cheaper_items",value:0}
 
 # testing
 execute if score clicked internal matches 23 run return run function core:setup/toggle {score:"singleplayer",value:1}

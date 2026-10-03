@@ -21,6 +21,11 @@ bossbar set core:main players @a
 # modules
 execute if score cut_clean global matches 1.. run function core:modules/cut_clean/tick
 execute if score speed_uhc global matches 1.. run function core:modules/speed_uhc/tick
+## in-game only (periods 0-2)
+execute if score period internal matches 0..2 if score throwable_knockback global matches 1.. run function core:modules/throwable_knockback/tick
+execute if score period internal matches 0..2 if score arrow_break global matches 1.. run function core:modules/arrow_break/tick
+## runs on or off, applies the setting
+function core:modules/cheaper_items/tick
 
 # clock, transitions, bossbar, per-player state
 function core:period/tick

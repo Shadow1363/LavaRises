@@ -5,6 +5,8 @@ scoreboard objectives add global dummy
 scoreboard objectives add internal dummy
 scoreboard objectives add last_login dummy
 scoreboard objectives add player.death deathCount
+## cheaper items, which recipe state a player has
+scoreboard objectives add core.recipes dummy
 
 # menu buttons and team picking
 scoreboard objectives add setup trigger
@@ -30,12 +32,22 @@ team modify yellow color yellow
 ## the game's load hook overrides these
 data merge storage core:config {title:"MINIGAME",start_subtitle:"The game has begun!",main_subtitle:"Eliminations are on! The last one standing wins."}
 
+# module configs
+## the game's load hook can override these
+function core:modules/throwable_knockback/config
+function core:modules/arrow_break/config
+
 # play area center
 ## chosen in setup, or the first player's position (see tick)
 execute unless data storage core:center x run data merge storage core:center {x:0,z:0}
 
 
 function #core:hooks/load
+
+# settings added after a world's defaults already ran
+execute unless score throwable_knockback global matches -2147483648.. run scoreboard players set throwable_knockback global 1
+execute unless score arrow_break global matches -2147483648.. run scoreboard players set arrow_break global 1
+execute unless score cheaper_items global matches -2147483648.. run scoreboard players set cheaper_items global 1
 
 # load defaults
 execute unless score defaults internal matches 1.. run function core:defaults

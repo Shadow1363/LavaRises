@@ -30,6 +30,12 @@ scoreboard players set cut_clean global 1
 ## speed uhc: held mining tools get efficiency II
 scoreboard players set speed_uhc global 1
 scoreboard players set patch_grindstone_exploit global 1
+## throwable knockback: snowballs and eggs knock players back
+scoreboard players set throwable_knockback global 1
+## arrow break: arrows fly through leaves and glass, breaking them
+scoreboard players set arrow_break global 1
+## cheaper items: cheaper recipes (e.g. tnt with 1 gunpowder)
+scoreboard players set cheaper_items global 1
 
 # singleplayer (testing)
 ## lets one player start, adds a phantom opponent so it doesn't end instantly
